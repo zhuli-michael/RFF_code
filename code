@@ -1,0 +1,88 @@
+def feat_gen(x,n_feat,lns):
+    """
+    #function to generate the features for gaussian kernel
+    :param x: the data
+    :param n_feat: number of features we need
+    :param lns: the inverse landscale of the gaussian kernel
+    :return: a sequence of features ready for KRR
+    """
+    n,d = np.shape(x)
+
+    w = np.random.multivariate_normal(np.zeros(d),lns*np.eye(d),n_feat)
+    return w
+
+
+def feat_matrix(x,w):
+    """
+    #funtion to generate the feature matrix Z
+    :param x: the data
+    :param w: the features
+    :return: the feature matrix of size len(n)*len(s)
+    """
+    s, dim = w.shape
+    # perform the product of x and w transpose
+    prot_mat = np.matmul(x,w.T)
+
+    feat1 = np.cos(prot_mat)
+    feat2 = np.sin(prot_mat)
+
+    feat_final = np.sqrt(1.0/s)*np.concatenate((feat1,feat2),axis = 1)
+
+    return feat_final
+
+def opm_feat(x,w,lmba):
+    """
+    #function to select the optimum features
+    :param x: the independent variable
+    :param w: the first layer features generated according to spectral density
+    :return: optimum features with importance weight
+    """
+    n_num, dim = x.shape
+    s, dim = w.shape
+
+    prot_mat = np.matmul(x,w.T)
+
+    feat1 = np.sqrt(1.0/s)*np.cos(prot_mat)
+    feat2 = np.sqrt(1.0/s)*np.sin(prot_mat)
+
+    Z_s = feat1 +feat2
+
+    ZTZ = np.matmul(Z_s.T,Z_s)
+
+    ZTZ_inv = np.linalg.inv(ZTZ +n_num*lmba*np.eye(s))
+
+    M = np.matmul(ZTZ,ZTZ_inv)
+    #M = np.matmul(M0,ZTZ)
+
+    l = np.trace(M)
+    #print l
+    #n_feat_draw = min(s,max(50,l))
+    #print n_feat_draw
+    #n_feat_draw = int(round(n_feat_draw))
+    n_feat_draw = s
+    #print n_feat_draw
+
+    pi_s = np.diag(M)
+    #print pi_s
+    qi_s = pi_s/l
+    is_wgt = np.sqrt(1/qi_s)
+    #print is_wgt
+
+    wgt_order = np.argsort(is_wgt)
+
+    w_order = wgt_order[(s-n_feat_draw):]
+    #print len(w_order)
+
+    #w_order = np.random.choice(s, n_feat_draw, replace=False, p=qi_s)
+    #print w_order
+    w_opm = np.zeros((n_feat_draw,dim))
+
+    wgh_opm = np.zeros(n_feat_draw)
+
+    for ii in np.arange(n_feat_draw):
+        order = w_order[ii]
+        w_opm[ii,:] = w[order,:]
+        wgh_opm[ii] = is_wgt[order]
+
+
+    return w_opm,wgh_opm
